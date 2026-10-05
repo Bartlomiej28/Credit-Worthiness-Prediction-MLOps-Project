@@ -1,0 +1,177 @@
+name: Deploy the Credit Worthiness image to an EC2 instance
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      retrain:
+        description: "Retrain the model and republish it to the S3 registry"
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  IMAGE_TAG: latest
+  CONTAINER_NAME: creditworthiness-app
+  HOST_MODEL_DIR: /opt/creditworthiness/saved_models
+
+jobs:
+  Continuous-Integration:
+    name: Test, publish the model and push the image to Amazon ECR
+    runs-on: ubuntu-latest
+    outputs:
+      image: ${{ steps.build-image.outputs.image }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install the dependencies
+        run: |
+          python -m pip install --upgrade "pip==25.3"
+          pip install -r requirements.txt -c requirements.lock
+          pip install pytest==8.4.2 httpx==0.28.1
+
+      - name: Check that the package and the configuration are consistent
+        run: |
+          python - <<'PY'
+          from credit_worthiness.pipeline.prediction_pipeline import NUMERIC_INPUT_FEATURES
+          from credit_worthiness.constants import FORM_FILE_PATH, SCHEMA_FILE_PATH
+          from credit_worthiness.utils.main_utils import read_yaml_file
+
+          schema = read_yaml_file(SCHEMA_FILE_PATH)
+          form_fields = {field["name"] for field in read_yaml_file(FORM_FILE_PATH)["fields"]}
+
+          expected = set(schema["oh_columns"] + schema["or_columns"])
+          expected |= {column for column in schema["num_features"] if column != "monthly_installment"}
+
+          assert expected == form_fields, f"form.yaml and schema.yaml disagree: {expected ^ form_fields}"
+          assert set(NUMERIC_INPUT_FEATURES) <= form_fields
+          print(f"Configuration is consistent, {len(form_fields)} input features.")
+          PY
+
+      - name: Run the test suite
+        run: pytest tests -v
+
+      - name: Configure the AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_DEFAULT_REGION || vars.AWS_DEFAULT_REGION }}
+
+      - name: Make sure the ECR repository exists
+        env:
+          ECR_REPOSITORY: ${{ secrets.ECR_REPO }}
+        run: |
+          aws ecr describe-repositories --repository-names "$ECR_REPOSITORY" >/dev/null 2>&1 \
+            || aws ecr create-repository \
+                 --repository-name "$ECR_REPOSITORY" \
+                 --image-scanning-configuration scanOnPush=true
+
+      - name: Publish a model to the S3 registry
+        run: |
+          python scripts/ensure_model.py ${{ inputs.retrain && '--force' || '' }}
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build, tag and push the image to Amazon ECR
+        id: build-image
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          ECR_REPOSITORY: ${{ secrets.ECR_REPO }}
+        run: |
+          # The commit tag is what the deployment pulls, so the job always ships the
+          # exact image it just built instead of whatever "latest" happens to be.
+          docker build --platform linux/amd64 \
+            -t "$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" \
+            -t "$ECR_REGISTRY/$ECR_REPOSITORY:$GITHUB_SHA" .
+          docker push "$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG"
+          docker push "$ECR_REGISTRY/$ECR_REPOSITORY:$GITHUB_SHA"
+          echo "image=$ECR_REGISTRY/$ECR_REPOSITORY:$GITHUB_SHA" >> "$GITHUB_OUTPUT"
+
+  Continuous-Deployment:
+    name: Serve the image from the EC2 instance
+    needs: Continuous-Integration
+    runs-on: self-hosted
+    steps:
+      - name: Configure the AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_DEFAULT_REGION || vars.AWS_DEFAULT_REGION }}
+
+      - name: Login to Amazon ECR
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Prepare the host directory of the model registry
+        run: |
+          sudo mkdir -p "$HOST_MODEL_DIR"
+          # The container drops its privileges to uid 10001, which has to own the mount.
+          sudo chown -R 10001:10001 "$HOST_MODEL_DIR"
+
+      - name: Pull the freshly built image
+        env:
+          IMAGE: ${{ needs.Continuous-Integration.outputs.image }}
+        run: docker pull "$IMAGE"
+
+      - name: Stop the previous container
+        run: docker rm -f "$CONTAINER_NAME" || true
+
+      - name: Run the Docker image to serve the users
+        env:
+          IMAGE: ${{ needs.Continuous-Integration.outputs.image }}
+        run: |
+          docker run -d --name "$CONTAINER_NAME" --restart unless-stopped \
+            -e AWS_ACCESS_KEY_ID="${{ secrets.AWS_ACCESS_KEY_ID }}" \
+            -e AWS_SECRET_ACCESS_KEY="${{ secrets.AWS_SECRET_ACCESS_KEY }}" \
+            -e AWS_DEFAULT_REGION="${{ secrets.AWS_DEFAULT_REGION || vars.AWS_DEFAULT_REGION }}" \
+            -e TRAIN_API_TOKEN="${{ secrets.TRAIN_API_TOKEN }}" \
+            -e CORS_ALLOW_ORIGINS="${{ vars.CORS_ALLOW_ORIGINS || '*' }}" \
+            -v "$HOST_MODEL_DIR":/app/saved_models \
+            -p 8080:8080 \
+            "$IMAGE"
+
+      - name: Wait until the container is serving predictions
+        run: |
+          for attempt in $(seq 1 60); do
+            status=$(docker inspect --format '{{.State.Health.Status}}' "$CONTAINER_NAME" 2>/dev/null || echo missing)
+            echo "attempt $attempt: $status"
+
+            if [ "$status" = "healthy" ]; then
+              curl -fsS http://localhost:8080/ready
+              echo "The deployment is serving predictions."
+              exit 0
+            fi
+
+            if [ "$status" = "unhealthy" ] || [ "$status" = "missing" ]; then
+              break
+            fi
+
+            sleep 5
+          done
+
+          echo "::error::The container never became ready."
+          docker logs --tail 100 "$CONTAINER_NAME" || true
+          curl -s http://localhost:8080/ready || true
+          exit 1
+
+      - name: Remove the dangling images
+        if: always()
+        run: docker image prune -f

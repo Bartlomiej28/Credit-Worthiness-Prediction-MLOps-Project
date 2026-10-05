@@ -1,0 +1,25 @@
+.git
+.github
+.gitignore
+.dockerignore
+__pycache__
+*.py[cod]
+*.egg-info
+.ipynb_checkpoints
+notebook
+artifact
+logs
+docs
+venv
+.venv
+.env
+README.md
+LICENSE
+requirements-dev.txt
+
+# The local model registry is produced by the training pipeline and is git ignored.
+# Leaving it out keeps the image built on a laptop identical to the one built by CI,
+# instead of a local build silently carrying a model the CI build does not have.
+saved_models
+scripts
+tests

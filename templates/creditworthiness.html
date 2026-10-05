@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Credit Worthiness Prediction</title>
+    <link rel="stylesheet" href="{{ url_for('static', path='/css/style.css') }}">
+  </head>
+  <body>
+    <header class="topbar">
+      <div class="wrap">
+        <span class="brand">Credit Worthiness Prediction</span>
+        <nav>
+          <a href="/">Prediction</a>
+          <a href="/train">Train the model</a>
+          <a href="/docs">API docs</a>
+        </nav>
+      </div>
+    </header>
+
+    <main class="wrap">
+      <section class="intro">
+        <h1>Will this applicant repay the credit?</h1>
+        <p>
+          Fill in the application data below. The model returns the credit score
+          predicted for the applicant, together with the estimated probability of default.
+        </p>
+      </section>
+
+      {% if error %}
+      <div class="alert alert-error">
+        <strong>Something went wrong.</strong>
+        <span>{{ error }}</span>
+      </div>
+      {% endif %}
+
+      {% if result %}
+      <div class="alert {{ 'alert-good' if result.is_creditworthy else 'alert-bad' }}">
+        <div class="verdict">{{ result.context }}</div>
+        <dl>
+          <div><dt>Predicted credit score</dt><dd>{{ result.credit_score }}</dd></div>
+          {% if result.risk_probability is not none %}
+          <div><dt>Probability of a bad credit score</dt><dd>{{ result.risk_probability }} %</dd></div>
+          {% endif %}
+        </dl>
+      </div>
+      {% endif %}
+
+      <form action="/" method="post" class="card">
+        <h2>Credit application</h2>
+        <div class="grid">
+          {% for field in fields %}
+          <div class="field">
+            <label for="{{ field.name }}">{{ field.label }}</label>
+            {% if field.type == 'select' %}
+            <select id="{{ field.name }}" name="{{ field.name }}" required>
+              <option value="" disabled {{ 'selected' if not (submitted and submitted[field.name]) }}>Select an option</option>
+              {% for option in field.options %}
+              <option value="{{ option }}" {{ 'selected' if submitted and submitted[field.name] == option }}>{{ option }}</option>
+              {% endfor %}
+            </select>
+            {% else %}
+            <input
+              type="number"
+              id="{{ field.name }}"
+              name="{{ field.name }}"
+              min="{{ field.min }}"
+              max="{{ field.max }}"
+              step="{{ field.step }}"
+              placeholder="{{ field.placeholder }}"
+              value="{{ submitted[field.name] if submitted and submitted[field.name] else '' }}"
+              required>
+            {% endif %}
+          </div>
+          {% endfor %}
+        </div>
+
+        <div class="actions">
+          <button type="submit">Predict credit worthiness</button>
+          <button type="reset" class="secondary">Clear the form</button>
+        </div>
+      </form>
+    </main>
+
+    <footer class="wrap">
+      <p>Trained with the CreditWorthiness dataset &mdash; ingestion, validation, transformation, training, evaluation and deployment run as one pipeline.</p>
+    </footer>
+  </body>
+</html>

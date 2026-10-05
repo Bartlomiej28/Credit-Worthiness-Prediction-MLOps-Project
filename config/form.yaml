@@ -1,0 +1,168 @@
+fields:
+  - name: checking_balance
+    label: "Balance of the current (checking) account"
+    type: select
+    options:
+      - "no checking account"
+      - "Rs. < 0"
+      - "0 <= Rs. < 2000"
+      - "Rs. >=2000"
+
+  - name: credit_duration
+    label: "Requested credit duration (months)"
+    type: number
+    min: 4
+    max: 72
+    step: 1
+    placeholder: "between 4 and 72 months"
+
+  - name: credit_amount
+    label: "Requested credit amount (Rs.)"
+    type: number
+    min: 1000
+    max: 200000
+    step: 10
+    placeholder: "between 1 000 and 200 000"
+
+  - name: credit_history
+    label: "Credit history"
+    type: select
+    options:
+      - "none taken/all settled"
+      - "all settled"
+      - "all settled till now"
+      - "dues not paid earlier"
+
+  - name: credit_purpose
+    label: "Purpose of the credit"
+    type: select
+    options:
+      - "Business"
+      - "domestic needs"
+      - "education"
+      - "electronics"
+      - "furniture"
+      - "miscellaneous"
+      - "new vehicle"
+      - "renovation"
+      - "retaining"
+      - "second hand vehicle"
+
+  - name: savings_balance
+    label: "Balance of the savings account"
+    type: select
+    options:
+      - "no savings account"
+      - "Rs. < 1000"
+      - "1000 <= Rs. < 5,000"
+      - "5000 <= Rs. < 10,000"
+      - "Rs. >= 10,000"
+
+  - name: employment_duration
+    label: "Length of current employment"
+    type: select
+    options:
+      - "not employed"
+      - "less than 1 year"
+      - "1 to 4 years"
+      - "4 to 7 years"
+      - "more than 7 years"
+
+  - name: installment_rate
+    label: "Installment rate (% of disposable income)"
+    type: number
+    min: 1
+    max: 4
+    step: 1
+    placeholder: "1 (lowest) to 4 (highest)"
+
+  - name: marital_status_gender
+    label: "Marital status and gender"
+    type: select
+    options:
+      - "single male"
+      - "married or widowed male"
+      - "divorced or separated male"
+      - "divorced or separated or married female"
+
+  - name: other_parties
+    label: "Other debtors or guarantors"
+    type: select
+    options:
+      - "no one"
+      - "yes, co-applicant"
+      - "yes, guarantor"
+
+  - name: residence_duration
+    label: "Time at the present address"
+    type: select
+    options:
+      - "less than a year"
+      - "1 to 2 years"
+      - "2 to 3 years"
+      - "more than 3 years"
+
+  - name: property_type
+    label: "Most valuable property owned"
+    type: select
+    options:
+      - "real estate"
+      - "life insurance/building society"
+      - "Other cars etc."
+      - "Unknown"
+
+  - name: age
+    label: "Age of the applicant (years)"
+    type: number
+    min: 18
+    max: 90
+    step: 1
+    placeholder: "between 18 and 90"
+
+  - name: installment_plans
+    label: "Other installment plans"
+    type: select
+    options:
+      - "none"
+      - "bank"
+      - "stores"
+
+  - name: housing_type
+    label: "Housing"
+    type: select
+    options:
+      - "own"
+      - "pays rent"
+      - "free"
+
+  - name: existing_credits
+    label: "Number of existing credits at this bank"
+    type: number
+    min: 1
+    max: 4
+    step: 1
+    placeholder: "between 1 and 4"
+
+  - name: job_type
+    label: "Type of job"
+    type: select
+    options:
+      - "non resident either unemployed or unskilled"
+      - "resident unskilled"
+      - "employee with official position"
+      - "employed either in management, self or in high position"
+
+  - name: num_dependents
+    label: "Number of dependents"
+    type: number
+    min: 1
+    max: 2
+    step: 1
+    placeholder: "1 or 2"
+
+  - name: foreign_worker
+    label: "Foreign worker"
+    type: select
+    options:
+      - "no"
+      - "yes"

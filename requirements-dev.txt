@@ -1,0 +1,13 @@
+-r requirements.txt
+
+ipykernel
+notebook
+nbformat
+matplotlib
+seaborn
+plotly
+xgboost
+catboost
+
+pytest==8.4.2
+httpx==0.28.1

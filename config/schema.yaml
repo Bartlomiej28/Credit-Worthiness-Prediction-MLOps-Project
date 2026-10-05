@@ -1,0 +1,132 @@
+raw_column_mapping:
+  Cbal: checking_balance
+  Cdur: credit_duration
+  Chist: credit_history
+  Cpur: credit_purpose
+  Camt: credit_amount
+  Sbal: savings_balance
+  Edur: employment_duration
+  InRate: installment_rate
+  MSG: marital_status_gender
+  Oparties: other_parties
+  Rdur: residence_duration
+  Prop: property_type
+  age: age
+  inPlans: installment_plans
+  Htype: housing_type
+  NumCred: existing_credits
+  JobType: job_type
+  Ndepend: num_dependents
+  telephone: telephone
+  foreign: foreign_worker
+  creditScore: credit_score
+
+columns:
+  - checking_balance: category
+  - credit_duration: int
+  - credit_history: category
+  - credit_purpose: category
+  - credit_amount: int
+  - savings_balance: category
+  - employment_duration: category
+  - installment_rate: int
+  - marital_status_gender: category
+  - other_parties: category
+  - residence_duration: category
+  - property_type: category
+  - age: int
+  - installment_plans: category
+  - housing_type: category
+  - existing_credits: int
+  - job_type: category
+  - num_dependents: int
+  - telephone: category
+  - foreign_worker: category
+  - credit_score: category
+
+numerical_columns:
+  - credit_duration
+  - credit_amount
+  - installment_rate
+  - age
+  - existing_credits
+  - num_dependents
+
+categorical_columns:
+  - checking_balance
+  - credit_history
+  - credit_purpose
+  - savings_balance
+  - employment_duration
+  - marital_status_gender
+  - other_parties
+  - residence_duration
+  - property_type
+  - installment_plans
+  - housing_type
+  - job_type
+  - telephone
+  - foreign_worker
+  - credit_score
+
+drop_columns:
+  - telephone
+
+# for data transformation
+num_features:
+  - credit_duration
+  - credit_amount
+  - installment_rate
+  - age
+  - existing_credits
+  - num_dependents
+  - monthly_installment
+
+or_columns:
+  - checking_balance
+  - savings_balance
+  - employment_duration
+  - residence_duration
+  - foreign_worker
+
+ordinal_categories:
+  checking_balance:
+    - "no checking account"
+    - "Rs. < 0"
+    - "0 <= Rs. < 2000"
+    - "Rs. >=2000"
+  savings_balance:
+    - "no savings account"
+    - "Rs. < 1000"
+    - "1000 <= Rs. < 5,000"
+    - "5000 <= Rs. < 10,000"
+    - "Rs. >= 10,000"
+  employment_duration:
+    - "not employed"
+    - "less than 1 year"
+    - "1 to 4 years"
+    - "4 to 7 years"
+    - "more than 7 years"
+  residence_duration:
+    - "less than a year"
+    - "1 to 2 years"
+    - "2 to 3 years"
+    - "more than 3 years"
+  foreign_worker:
+    - "no"
+    - "yes"
+
+oh_columns:
+  - credit_history
+  - credit_purpose
+  - marital_status_gender
+  - other_parties
+  - property_type
+  - installment_plans
+  - housing_type
+  - job_type
+
+transform_columns:
+  - credit_amount
+  - monthly_installment
+  - age
